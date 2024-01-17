@@ -1,0 +1,38 @@
+1. 2theta_#1-1358_2tw
+   1. 回折強度全体横軸
+2. int_#1-1358_2tw
+   1. 回折強度全体縦軸
+3. 2theta_#1-1358_2tw_fft
+   1. 1をFFTしたもの
+4. int_#1-1358_2tw_fft
+   1. 2と同じ
+5. q_#1-1358_2tw_fft
+   1. 散乱ベクトルqの大きさ
+6. q_lnsp_#1-1358_2tw_fft
+   1. qの等間隔な配列
+7. int_log_#1-1358_2tw_fft
+   1. 4の対数
+8. int_bg_log_#1-1358_2tw_fft
+   1. 
+9. int_osci_#1-1358_2tw_fft
+10. q_freq_#1-1358_2tw_fft
+11. int_ps_#1-1358_2tw_fft
+12. q_period_#1-1358_2tw_fft
+13. thickness_#1-1358_2tw_fft
+    1. thickness横軸
+14. omega_#1-1358_r006
+    1. rocking006omega
+15. int_#1-1358_r006
+    1. rocking006縦軸
+16. d_omega_#1-1358_r006
+    1. rocking006横軸（中心からのomega差）
+17. lor_fit_#1-1358_r006
+    1. rocking006のローレンツフィット（正規分布みたいな曲線のやつ，横軸には16（14かも）を使用する）
+18. omega_#1-1358_r0015
+    1. rocking0015omega
+19. int_#1-1358_r0015
+    1. rocking0015縦軸
+20. d_omega_#1-1358_r0015
+    1. rocking0015横軸（中心からのomega差）
+21. lor_fit_#1-1358_r0015
+    1. rocking0015のローレンツフィット（正規分布みたいな曲線のやつ，横軸には20（18かも）を使用する）
