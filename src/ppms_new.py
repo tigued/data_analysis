@@ -37,7 +37,7 @@ def main(sample: str, dirname: str, ch_num: List[int], epilog_path="/Users/uedat
         log_path = None
 
     thickness = 0  # 単位は[m]
-    temp_threshold = 2
+    temp_threshold = 1
     if os.path.exists(pwd / r"RT.dat"):
         rt = PPMS(pwd / r"RT.dat", ch_num, sample, thickness=thickness, log_path=log_path)
         rt.run_rt()
@@ -444,8 +444,8 @@ class PPMS:
                 )
         else:
             # 往復なし(非磁性体)
-            B_ref, Rxx, _ = self.symmetrize(B_raw, Rxx_raw)
-            B_ref, _, Ryx = self.symmetrize(B_raw, Ryx_raw)
+            B_ref, Rxx, _ = tr.symmetrize(B_raw, Rxx_raw)
+            B_ref, _, Ryx = tr.symmetrize(B_raw, Ryx_raw)
             Gxx = Rxx / (Rxx**2 + Ryx**2)
             Gxy = Ryx / (Rxx**2 + Ryx**2)
             Rxx_int = interpolate.interp1d(B_ref, Rxx)
@@ -456,8 +456,19 @@ class PPMS:
             HallAngle = Ryx / Rxx
             # NOTE: 途中で量子ホール化する時はその部分を除外しないと正しい値が出ない
             # NOTE: こちらもB > 5に制限すべきか？
+            # down scanのB>0だけ取り出してフィッティングする
+            # subdf_d_pos = pd.DataFrame(np.array([B_raw, Ryx_raw]).T, columns=["B", "Ryx"]).query("B > 5")
+            # NOTE: 上のだと生データを使っている&低磁場付近で変な挙動があると不正確になる
+            # 下のように，B > 5 T以上のデータがあるときは B > 5 Tの範囲でフィッティング，それ以外は B > 0 Tの範囲でフィッティング．使用するのは反対称化したデータのダウンスキャンのみ
+            if np.max(B_ref) < 5:
+                subdf_pos = pd.DataFrame(np.array([B_ref, Ryx]).T, columns=["B", "Ryx"]).query("B > 0")
+            else:
+                print(f"use B > 5 T at {fixed_temp} K")
+                subdf_pos = pd.DataFrame(np.array([B_ref, Ryx]).T, columns=["B", "Ryx"]).query("B > 5")
+            B_ref_pos = subdf_pos["B"].values
+            Ryx_pos = subdf_pos["Ryx"].values
             try:
-                fit = np.polyfit(B_ref, Ryx, 1)
+                fit = np.polyfit(B_ref_pos, Ryx_pos, 1)  #
             except BaseException:
                 print(str(fixed_temp) + "K")
                 import traceback
@@ -1069,17 +1080,17 @@ class PPMS:
             y_step=3,
         )
         # Arrott plot
-        igor.plot(
-            ax=ax[3][3],
-            xs=BoverRyx,
-            ys=Ryx_d_sq,
-            xlabel=r"$B / \rho_{yx}$ (a.u.)",
-            ylabel=r"$\rho_{yx}^2$ (a.u.)",
-            labels=[""] * len(BoverRyx),
-            x_step=3,
-            y_step=3,
-            savepath=savepath,
-        )
+        # igor.plot(
+        #     ax=ax[3][3],
+        #     xs=BoverRyx,
+        #     ys=Ryx_d_sq,
+        #     xlabel=r"$B / \rho_{yx}$ (a.u.)",
+        #     ylabel=r"$\rho_{yx}^2$ (a.u.)",
+        #     labels=[""] * len(BoverRyx),
+        #     x_step=3,
+        #     y_step=3,
+        #     savepath=savepath,
+        # )
 
         return fig
 

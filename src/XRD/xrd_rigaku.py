@@ -19,13 +19,14 @@ from igor import Igor  # , round_down, round_up
 import matplotlib.ticker
 
 
-def main(sample):
+def main(sample, order):
     directory = Path("/Users/uedataiga/Desktop/grad-research/data_analysis/Data/XRD/")
     filepath_2tw = directory / f"{sample}/2tw.dat"
     filepath_r006 = directory / f"{sample}/rock006.dat"
     filepath_r0015 = directory / f"{sample}/rock15.dat"
-    xrd = XRD(sample, filepath_2tw, filepath_r006, filepath_r0015)
+    xrd = XRD(sample, filepath_2tw, filepath_r006, filepath_r0015, order=order)
     xrd.run()
+    return xrd.peak_2theta
     # xrd.export_igor_command()
 
 
@@ -204,7 +205,7 @@ def main_summary(samples, labels=None, offsets_2tw=None, summary_savepath=None):
 
 
 class XRD:
-    def __init__(self, sample, filepath_2tw="", filepath_r006="", filepath_r0015=""):
+    def __init__(self, sample, filepath_2tw="", filepath_r006="", filepath_r0015="", order=20):
         self.SAMPLE = sample
         self.filepath_2tw = filepath_2tw
         self.filepath_r006 = filepath_r006
@@ -212,13 +213,16 @@ class XRD:
         self.fwhm = None
         self.filepath_r0015 = filepath_r0015
         self.filedir = Path(os.path.dirname(filepath_2tw))
+        self.xrd_lambda = 0.1540598  # Kα（カッパアルファ1）の波長（Å)
+        self.peak_2theta = []
+        self.order = order
         try:
             self.df = pd.read_csv(self.filepath_2tw, skiprows=2, delimiter="\\s")
         except UnicodeDecodeError:
             self.df = pd.read_csv(self.filepath_2tw, skiprows=2, delimiter="\\s", encoding="shift-jis")
         # 低角反射の設定
         self.two_theta_min = 0.5
-        self.two_theta_max = 5
+        self.two_theta_max = 3
         self.t_upperbound = 200  # nm
 
     def run(self):
@@ -231,8 +235,8 @@ class XRD:
         print("##### laue_fringe #####")
         self.laue_fringe()
         print("##### rocking #####")
-        csv_r006 = self.rocking(self.filepath_r006, title="(006) rocking")
-        csv_r0015 = self.rocking(self.filepath_r0015, title="(0015) rocking")
+        _ = self.rocking(self.filepath_r006, title="(006) rocking")
+        _ = self.rocking(self.filepath_r0015, title="(0015) rocking")
         # self.integrate_data(
         #     [csv_2tw, csv_2tw_fft, csv_r006, csv_r0015],
         #     prefix_list=[
@@ -265,7 +269,6 @@ class XRD:
     #     return None
 
     def two_theta_omega(self) -> Tuple[pd.DataFrame, pathlib.PosixPath]:
-        xrd_lambda = 1.540598  # Kα（カッパアルファ1）の波長
         filename, _ = os.path.splitext(os.path.basename(self.filepath_2tw))
 
         self.df.columns = ["2theta", "int"]
@@ -273,41 +276,41 @@ class XRD:
         csv_path = self.filedir / f"X{filename}.csv"  # NOTE: +1したものであることに注意
         self.df.to_csv(csv_path, index=False)
 
-        self.df["q"] = 4 * np.pi * np.sin(self.df["2theta"] * np.pi / 360) / xrd_lambda  # q = 4πsin(θ)/λ
+        self.df["q"] = 4 * np.pi * np.sin(self.df["2theta"] * np.pi / 360) / self.xrd_lambda  # q = 4πsin(θ)/λ
         # qは散乱ベクトルの大きさを表す
         self.df["q_lnsp"] = np.linspace(np.min(self.df["q"]), np.max(self.df["q"]), np.size(self.df["q"]))  # qの等間隔な配列
         lar_intp = interpolate.interp1d(self.df["q"], self.df["int"])  # qの等間隔な配列に対応するように補間
         self.df["int_log"] = np.log10(lar_intp(self.df["q_lnsp"]) + 1)  # 補間した値を対数変換
 
-        min_x, max_x = 0, 80
-        min_y, max_y = 1e0, 1e10
-        x_step, y_step = 5, 6
-        sub_x_step, sub_y_step = 2, 2
-        igor = Igor(fontsize=28)
-        fig, ax = plt.subplots(figsize=(15, 6))
-        igor.plot(
-            ax=ax,
-            xs=[self.df["2theta"]],
-            ys=[self.df["int"]],
-            xlabel=r"$ \mathrm{2\theta} $ (deg)",
-            ylabel=r"Inteisity (cps)",
-            labels=[""],
-            label_pos="best",
-            min_x=min_x,
-            max_x=max_x,
-            x_step=x_step,
-            sub_x_step=sub_x_step,
-            min_y=min_y,
-            max_y=max_y,
-            y_step=y_step,
-            sub_y_step=sub_y_step,
-            log_scale="y",
-            grid="",
-            title="",
-            suffix="",
-            savepath=str(self.filedir / "2theta-omega.png"),
-        )
-        plt.show()
+        # min_x, max_x = 0, 80
+        # min_y, max_y = 1e0, 1e10
+        # x_step, y_step = 5, 6
+        # sub_x_step, sub_y_step = 2, 2
+        # igor = Igor(fontsize=28)
+        # fig, ax = plt.subplots(figsize=(15, 6))
+        # igor.plot(
+        #     ax=ax,
+        #     xs=[self.df["2theta"]],
+        #     ys=[self.df["int"]],
+        #     xlabel=r"$ \mathrm{2\theta} $ (deg)",
+        #     ylabel=r"Inteisity (cps)",
+        #     labels=[""],
+        #     label_pos="best",
+        #     min_x=min_x,
+        #     max_x=max_x,
+        #     x_step=x_step,
+        #     sub_x_step=sub_x_step,
+        #     min_y=min_y,
+        #     max_y=max_y,
+        #     y_step=y_step,
+        #     sub_y_step=sub_y_step,
+        #     log_scale="y",
+        #     grid="",
+        #     title="",
+        #     suffix="",
+        #     savepath=str(self.filedir / "2theta-omega.png"),
+        # )
+        # plt.show()
         return csv_path
 
     def extract_low_angle(self) -> List[float]:
@@ -347,57 +350,56 @@ class XRD:
             self.df_trim["int_osci"] = self.df_trim["int_log"] - self.df_trim["int_bg_log"]
             break
 
-        # min_x, max_x = 0, 0.35
-        # # min_y, max_y = 1e0, 1e10
-        # min_y, max_y = 0, 10
+        min_x, max_x = 0, 0.35
+        # min_y, max_y = 1e0, 1e10
+        min_y, max_y = 0, 10
 
         igor = Igor(digits=2)
-        fig = plt.figure(figsize=(5, 8))
-        ax1 = fig.add_subplot(2, 1, 1)
+        fig = plt.figure(figsize=(5, 3))
+        ax1 = fig.add_subplot(1, 1, 1)
         igor.plot(
             ax=ax1,
             xs=[self.df_trim["q_lnsp"], self.df_trim["q_lnsp"]],
             ys=[self.df_trim["int_bg_log"], self.df_trim["int_log"]],
             labels=["", ""],
-            xlabel=r"",
+            xlabel=r"q ($\mathrm{nm}^{-1}$)",  # 散乱ベクトルの大きさ # r"q (nm$^{-1}$)" = 4πsin(θ)/λ
             ylabel=r"Intensity(log) (cps)",
+            min_x=0,
+            max_x=2.5,
+            x_step=4,
+            sub_x_step=2,
             min_y=0,
             max_y=10,
             y_step=5,
             sub_y_step=2,
-            omit_tick="x",
+            # omit_tick="x",
             savepath="",
         )
 
-        # min_x, max_x = 0, 0.35
-        # min_y = round_down(1.1 * min(self.df_trim["int_osci"]), 2)
-        # max_y = round_up(
-        #     1.1 * max(self.df_trim["int_osci"]), 2
+        # ax2 = fig.add_subplot(2, 1, 2, sharex=ax1)
+        # igor.plot(
+        #     ax=ax2,
+        #     xs=[self.df_trim["q_lnsp"]],
+        #     ys=[self.df_trim["int_osci"]],
+        #     xlabel=r"q ($\mathrm{nm}^{-1}$)",  # 散乱ベクトルの大きさ # r"q (nm$^{-1}$)" = 4πsin(θ)/λ
+        #     ylabel=r"difference from background (cps)",
+        #     label=[""],
+        #     label_pos="best",
+        #     min_x=0,
+        #     max_x=2.5,
+        #     x_step=4,
+        #     sub_x_step=2,
+        #     min_y=None,
+        #     max_y=None,
+        #     y_step=5,
+        #     sub_y_step=2,
+        #     grid="",
+        #     omit_tick="",
+        #     title="",
+        #     suffix="",
+        #     savepath=str(self.filedir / "2tw_low_angle.png"),
         # )
-        ax2 = fig.add_subplot(2, 1, 2, sharex=ax1)
-        igor.plot(
-            ax=ax2,
-            xs=[self.df_trim["q_lnsp"]],
-            ys=[self.df_trim["int_osci"]],
-            xlabel=r"q ($\mathrm{nm}^{-1}$)",  # 散乱ベクトルの大きさ # r"q (nm$^{-1}$)" = 4πsin(θ)/λ
-            ylabel=r"difference from background (cps)",
-            label=[""],
-            label_pos="best",
-            min_x=0,
-            max_x=0.3,
-            x_step=4,
-            sub_x_step=2,
-            min_y=None,
-            max_y=None,
-            y_step=5,
-            sub_y_step=2,
-            grid="",
-            omit_tick="",
-            title="",
-            suffix="",
-            savepath=str(self.filedir / "2tw_low_angle.png"),
-        )
-        plt.show()
+        # plt.show()
         return param_opti
 
     def laue_fringe(self, two_theta_min=14, two_theta_max=23):
@@ -437,38 +439,38 @@ class XRD:
         # param_opti, _ = optimize.curve_fit(lambda q, M, A: laue_func(q, d_init, M, A), df_trim["q_lnsp"].values, df_trim["int_log"].values, p0 = param_init)
         # plt.plot(df_trim["q"], laue_func(df_trim["q"].values, d_init, *param_opti))
 
-        fig = plt.figure(figsize=(5, 4))
-        ax = fig.add_subplot(1, 1, 1)
-        igor = Igor(digits=2, margin=0.1)
-        igor.plot(
-            ax=ax,
-            xs=[
-                df_trim_laue["q"],
-                # df_trim_laue["q"]
-            ],
-            ys=[
-                df_trim_laue["int_log"],
-                # laue_func(df_trim_laue["q"].values, d_init, M_init, 3),
-            ],
-            xlabel=r"q ($\mathrm{nm}^{-1}$)",
-            ylabel=r"Intensity(log) (cps)",
-            # labels=["", ""],
-            labels=[""],
-            label_pos="best",
-            min_x=None,
-            max_x=None,
-            x_step=5,
-            sub_x_step=2,
-            min_y=0,
-            max_y=None,
-            y_step=5,
-            sub_y_step=2,
-            grid="",
-            title="",
-            suffix="",
-            savepath=str(self.filedir / "laue_fringe.png"),
-        )
-        plt.show()
+        # fig = plt.figure(figsize=(5, 4))
+        # ax = fig.add_subplot(1, 1, 1)
+        # igor = Igor(digits=2, margin=0.1)
+        # igor.plot(
+        #     ax=ax,
+        #     xs=[
+        #         df_trim_laue["q"],
+        #         # df_trim_laue["q"]
+        #     ],
+        #     ys=[
+        #         df_trim_laue["int_log"],
+        #         # laue_func(df_trim_laue["q"].values, d_init, M_init, 3),
+        #     ],
+        #     xlabel=r"q ($\mathrm{nm}^{-1}$)",
+        #     ylabel=r"Intensity(log) (cps)",
+        #     # labels=["", ""],
+        #     labels=[""],
+        #     label_pos="best",
+        #     min_x=None,
+        #     max_x=None,
+        #     x_step=5,
+        #     sub_x_step=2,
+        #     min_y=0,
+        #     max_y=None,
+        #     y_step=5,
+        #     sub_y_step=2,
+        #     grid="",
+        #     title="",
+        #     suffix="",
+        #     savepath=str(self.filedir / "laue_fringe.png"),
+        # )
+        # plt.show()
 
     def detect_thickness(self):
         filename, _ = os.path.splitext(os.path.basename(self.filepath_2tw))
@@ -483,7 +485,7 @@ class XRD:
         # dq = period of oscillation
         # q_freq = inverse of dq
         self.df_trim["q_period"] = 1 / self.df_trim["q_freq"]
-        self.df_trim["thickness"] = 2 * np.pi * self.df_trim["q_freq"] * 0.1  # 0.1はAからnmへの変換
+        self.df_trim["thickness"] = 2 * np.pi * self.df_trim["q_freq"]
         csv_path = self.filedir / f"X{filename}_fft.csv"
         self.df_trim.to_csv(csv_path, index=False)
 
@@ -520,7 +522,7 @@ class XRD:
         fft_peak = signal.argrelmax(self.df_trim["int_ps"].values)
         fft_peak_value = self.df_trim["int_ps"].values[fft_peak]
         q_osci = 1 / self.df_trim["q_freq"].values[fft_peak]
-        thickness_nm = 2 * np.pi * 0.1 * self.df_trim["q_freq"].values[fft_peak]
+        thickness_nm = 2 * np.pi * self.df_trim["q_freq"].values[fft_peak]
         fft_result = np.array([fft_peak_value, q_osci, thickness_nm])
         fft_result = fft_result[:, fft_result[0, :].argsort()[::-1]]
         fft_peak_value = fft_result[0]
@@ -540,6 +542,37 @@ class XRD:
         with open(fft_result_path, mode="w") as f:
             f.write(fft_result)
 
+        # int_osciのピーク位置から膜厚を求める
+        peaks_index = signal.argrelmax(self.df_trim["int_osci"].values, order=self.order)
+        print(len(peaks_index[0]))
+        # peakをプロット
+        igor = Igor(digits=2)
+        fig, ax = plt.subplots(figsize=(5, 4))
+        plt.plot(self.df_trim["q_lnsp"].values, self.df_trim["int_osci"].values, "-", color="red")
+        plt.plot(self.df_trim["q_lnsp"].values[peaks_index[0]], self.df_trim["int_osci"].values[peaks_index[0]], ".", color="blue")
+        plt.xlabel(r"q ($\mathrm{nm}^{-1}$)")
+        plt.ylabel(r"difference from background (log(cps))")
+        
+        # d = lambda / 2(sin(theta_{n+1}) - sin(theta_n))
+        ds = []
+        for i in range(len(peaks_index[0]) - 1):
+            # print(f"{i}番目のピーク")
+            # print(peaks_index[0][i], peaks_index[0][i + 1])
+            # print(np.sin(self.df_trim["2theta"].values[peaks_index[0][i]] * np.pi / 360), np.sin(self.df_trim["2theta"].values[peaks_index[0][i + 1]] * np.pi / 360))
+            d = self.xrd_lambda / (2 * (np.sin(self.df_trim["2theta"].values[peaks_index[0][i + 1]] * np.pi / 360) - np.sin(self.df_trim["2theta"].values[peaks_index[0][i]] * np.pi / 360)))
+            # d = 2 * np.pi / (self.df_trim["q_lnsp"].values[peaks_index[0][i + 1]] - self.df_trim["q_lnsp"].values[peaks_index[0][i]])
+            ds.append(d)
+        print("膜厚候補")
+        print(ds)
+        print(f"mean: {np.mean(ds)}")
+        print(f"std: {np.std(ds)}")
+        self.peak_2theta = self.df_trim["2theta"].values[peaks_index[0]]
+        with open(self.filedir / f"{filename}_thickness.txt", mode="w") as f:
+            f.write("2theta: " + str(self.df_trim["2theta"].values[peaks_index[0]]) + "\n")
+            f.write("膜厚: " + str(ds) + "\n")
+            f.write("mean: " + str(np.mean(ds)))
+            f.write("\n")
+            f.write("std: " + str(np.std(ds)))
         return csv_path
 
     def detect_c_axis_length(self, theta0=0, target="006"):
@@ -552,8 +585,7 @@ class XRD:
         """
         print(f"target = {target}")
         # c_axis_length = 0
-        xrd_lambda = 1.540598  # Kα（カッパアルファ1）の波長（Å)
-        d = (3 / 5) * (xrd_lambda / (2 * np.sin(np.deg2rad(theta0))))
+        d = (3 / 5) * (self.xrd_lambda / (2 * np.sin(np.deg2rad(theta0))))
         if target == "006":
             d = d
         elif target == "0015":
@@ -577,6 +609,9 @@ class XRD:
             df = pd.read_csv(filepath, skiprows=2, delimiter=" ")
         except UnicodeDecodeError:
             df = pd.read_csv(filepath, skiprows=2, delimiter=" ", encoding="shift-jis")
+        except FileNotFoundError:
+            print(f"{filepath} is not found")
+            return None
         df.columns = ["omega", "int"]
         # plt.plot(df["omega"], df["int"], ".", color="red")
 
@@ -623,37 +658,37 @@ class XRD:
         print(fit_result)
         df.to_csv(csv_path, index=False)
 
-        igor = Igor(digits=2)
-        fig, ax = plt.subplots(figsize=(3, 5))
-        min_x, max_x = -1, 1
-        min_y = 0
-        if np.max(df["int"].values) > 10000:
-            max_y = None
-        else:
-            max_y = 10000
+        # igor = Igor(digits=2)
+        # fig, ax = plt.subplots(figsize=(3, 5))
+        # min_x, max_x = -1, 1
+        # min_y = 0
+        # if np.max(df["int"].values) > 10000:
+        #     max_y = None
+        # else:
+        #     max_y = 10000
 
-        igor.plot(
-            ax=ax,
-            xs=[df["d_omega"].values],
-            ys=[df["int"].values],
-            xlabel=r"$\Delta \omega$",
-            ylabel=r"Intensity (cps)",
-            label=[""],
-            label_pos="best",
-            min_x=min_x,
-            max_x=max_x,
-            x_step=5,
-            sub_x_step=2,
-            min_y=min_y,
-            max_y=max_y,
-            y_step=5,
-            sub_y_step=2,
-            grid="",
-            title=title,
-            suffix="",
-            savepath=str(self.filedir / f"{filename}.png"),
-        )
-        plt.show()
+        # igor.plot(
+        #     ax=ax,
+        #     xs=[df["d_omega"].values],
+        #     ys=[df["int"].values],
+        #     xlabel=r"$\Delta \omega$",
+        #     ylabel=r"Intensity (cps)",
+        #     label=[""],
+        #     label_pos="best",
+        #     min_x=min_x,
+        #     max_x=max_x,
+        #     x_step=5,
+        #     sub_x_step=2,
+        #     min_y=min_y,
+        #     max_y=max_y,
+        #     y_step=5,
+        #     sub_y_step=2,
+        #     grid="",
+        #     title=title,
+        #     suffix="",
+        #     savepath=str(self.filedir / f"{filename}.png"),
+        # )
+        # plt.show()
 
         # フィッティングパラメータを出力
         fit_result_path = self.filedir / f"{filename}_fit.txt"

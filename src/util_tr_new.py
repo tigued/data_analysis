@@ -126,7 +126,7 @@ def smooth(x_raw, convolve_size=41):
     return x_raw_convolve
 
 
-def split_arrays(primary_array, secondary_arrays, threshold: float = 1.0, primary_array_name: str = None, seconday_array_names: str = None) -> Dict[float, pd.DataFrame]:
+def split_arrays(primary_array, secondary_arrays, threshold: float = 0.5, primary_array_name: str = None, seconday_array_names: str = None) -> Dict[float, pd.DataFrame]:
     df = pd.DataFrame(np.array(secondary_arrays).T)
     if seconday_array_names is not None:
         df.columns = seconday_array_names
